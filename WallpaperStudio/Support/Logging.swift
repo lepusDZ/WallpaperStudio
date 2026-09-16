@@ -1,25 +1,27 @@
 import OSLog
 
 extension Logger {
-    private static let subsystem = "io.github.lepusDZ.WallpaperStudio"
+
+    private static let subsystem =
+        "io.github.lepusDZ.WallpaperStudio"
 
     static let app = Logger(
         subsystem: subsystem,
-        category: "app"
+        category: "App"
     )
 
     static let engine = Logger(
         subsystem: subsystem,
-        category: "engine"
+        category: "Engine"
     )
 
     static let display = Logger(
         subsystem: subsystem,
-        category: "display"
+        category: "Display"
     )
 
     static let rendering = Logger(
         subsystem: subsystem,
-        category: "rendering"
+        category: "Rendering"
     )
 }
