@@ -7,10 +7,21 @@ final class VideoWallpaperView: NSView {
 
     private let renderer: VideoWallpaperRenderer
 
-    /// Normal initializer used by Wallpaper Studio.
+    var scalingMode: WallpaperScalingMode {
+        didSet {
+            guard scalingMode != oldValue else {
+                return
+            }
+
+            applyScalingMode()
+        }
+    }
+
+    /// Normal initializer used when displaying a video from disk.
     convenience init(
         frame frameRect: NSRect,
-        sourceURL: URL
+        sourceURL: URL,
+        scalingMode: WallpaperScalingMode = .fill
     ) throws {
         let renderer = try VideoWallpaperRenderer(
             sourceURL: sourceURL
@@ -18,18 +29,19 @@ final class VideoWallpaperView: NSView {
 
         self.init(
             frame: frameRect,
-            renderer: renderer
+            renderer: renderer,
+            scalingMode: scalingMode
         )
-
-        renderer.play()
     }
 
-    /// Separate initializer lets tests provide their own renderer.
+    /// Allows tests to provide their own renderer.
     init(
         frame frameRect: NSRect,
-        renderer: VideoWallpaperRenderer
+        renderer: VideoWallpaperRenderer,
+        scalingMode: WallpaperScalingMode = .fill
     ) {
         self.renderer = renderer
+        self.scalingMode = scalingMode
 
         super.init(frame: frameRect)
 
@@ -46,7 +58,7 @@ final class VideoWallpaperView: NSView {
         )
     }
 
-    /// NSView calls this whenever the view's size/layout changes.
+    /// Keeps the AVPlayerLayer matched to the NSView when its size changes.
     override func layout() {
         super.layout()
 
@@ -66,9 +78,17 @@ final class VideoWallpaperView: NSView {
     private func configurePlayerLayer() {
         wantsLayer = true
 
+        layer?.backgroundColor = NSColor.black.cgColor
+        layer?.masksToBounds = true
+
         renderer.playerLayer.frame = bounds
-        renderer.playerLayer.videoGravity = .resizeAspectFill
+
+        applyScalingMode()
 
         layer?.addSublayer(renderer.playerLayer)
+    }
+
+    private func applyScalingMode() {
+        renderer.playerLayer.videoGravity = scalingMode.avVideoGravity
     }
 }

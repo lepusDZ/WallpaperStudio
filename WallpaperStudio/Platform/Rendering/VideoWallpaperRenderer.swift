@@ -7,6 +7,7 @@ final class VideoWallpaperRenderer {
     let playerLayer: AVPlayerLayer
 
     private let player: AVQueuePlayer
+
     private let looper: AVPlayerLooper
 
     private var statusObservation: NSKeyValueObservation?
@@ -17,7 +18,7 @@ final class VideoWallpaperRenderer {
         player.isMuted
     }
 
-    /// Creates a renderer from a local video file.
+    /// Creates a renderer for a local video file.
     convenience init(sourceURL: URL) throws {
         guard FileManager.default.fileExists(atPath: sourceURL.path) else {
             Logger.rendering.error(
@@ -39,28 +40,29 @@ final class VideoWallpaperRenderer {
         )
     }
 
-    /// Internal initializer also makes the renderer easy to unit test
-    /// without depending on a developer-specific file path.
+    /// Allows tests to provide an AVPlayerItem without depending on
+    /// a developer-specific video file.
     init(
         playerItem: AVPlayerItem,
         sourceName: String
     ) {
         let player = AVQueuePlayer()
-
         player.isMuted = true
 
         self.player = player
         self.playerLayer = AVPlayerLayer(player: player)
+
         self.looper = AVPlayerLooper(
             player: player,
             templateItem: playerItem
         )
+
         self.sourceName = sourceName
 
         observePlayerStatus()
 
         Logger.rendering.info(
-            "Video loaded: \(self.sourceName, privacy: .public)"
+            "Video source configured: \(sourceName, privacy: .public)"
         )
     }
 
@@ -83,27 +85,42 @@ final class VideoWallpaperRenderer {
     // MARK: - Player State
 
     private func observePlayerStatus() {
-        let sourceName = sourceName
+        let observedSourceName = sourceName
 
         statusObservation = player.observe(
             \.status,
-            options: [.new]
+            options: [.initial, .new]
         ) { player, _ in
-            guard player.status == .failed else {
-                return
+
+            switch player.status {
+            case .unknown:
+                Logger.rendering.debug(
+                    "Waiting for video: \(observedSourceName, privacy: .public)"
+                )
+
+            case .readyToPlay:
+                Logger.rendering.info(
+                    "Video ready to play: \(observedSourceName, privacy: .public)"
+                )
+
+            case .failed:
+                let errorMessage =
+                    player.error?.localizedDescription
+                    ?? "Unknown playback error"
+
+                Logger.rendering.error(
+                    """
+                    Video playback failed for \
+                    \(observedSourceName, privacy: .public): \
+                    \(errorMessage, privacy: .public)
+                    """
+                )
+
+            @unknown default:
+                Logger.rendering.warning(
+                    "Unknown player status for \(observedSourceName, privacy: .public)"
+                )
             }
-
-            let errorMessage =
-                player.error?.localizedDescription
-                ?? "Unknown playback error"
-
-            Logger.rendering.error(
-                """
-                Video playback failed for \
-                \(sourceName, privacy: .public): \
-                \(errorMessage, privacy: .public)
-                """
-            )
         }
     }
 }

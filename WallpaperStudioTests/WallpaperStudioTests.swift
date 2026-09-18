@@ -7,6 +7,8 @@ import Testing
 @MainActor
 struct WallpaperStudioTests {
 
+    // MARK: - Renderer
+
     @Test
     func rendererRejectsMissingVideoFile() {
         let missingURL = URL(
@@ -14,7 +16,9 @@ struct WallpaperStudioTests {
                 "/tmp/wallpaper-studio-file-that-does-not-exist.mp4"
         )
 
-        #expect(throws: VideoWallpaperRendererError.self) {
+        #expect(
+            throws: VideoWallpaperRendererError.self
+        ) {
             try VideoWallpaperRenderer(
                 sourceURL: missingURL
             )
@@ -35,23 +39,82 @@ struct WallpaperStudioTests {
         #expect(renderer.playerLayer.player != nil)
     }
 
+    // MARK: - Scaling
+
+    @Test
+    func fillMapsToAspectFill() {
+        #expect(
+            WallpaperScalingMode.fill.avVideoGravity
+                == .resizeAspectFill
+        )
+    }
+
+    @Test
+    func fitMapsToAspectFit() {
+        #expect(
+            WallpaperScalingMode.fit.avVideoGravity
+                == .resizeAspect
+        )
+    }
+
+    @Test
+    func stretchMapsToResize() {
+        #expect(
+            WallpaperScalingMode.stretch.avVideoGravity
+                == .resize
+        )
+    }
+
+    @Test
+    func videoViewUsesInitialScalingMode() {
+        let renderer = makeTestRenderer()
+
+        _ = VideoWallpaperView(
+            frame: testFrame,
+            renderer: renderer,
+            scalingMode: .fit
+        )
+
+        #expect(
+            renderer.playerLayer.videoGravity
+                == .resizeAspect
+        )
+    }
+
+    @Test
+    func changingScalingModeUpdatesPlayerLayer() {
+        let renderer = makeTestRenderer()
+
+        let view = VideoWallpaperView(
+            frame: testFrame,
+            renderer: renderer
+        )
+
+        view.scalingMode = .stretch
+
+        #expect(
+            renderer.playerLayer.videoGravity
+                == .resize
+        )
+    }
+
+    // MARK: - Video View
+
     @Test
     func videoViewAttachesPlayerLayer() {
         let renderer = makeTestRenderer()
 
         let view = VideoWallpaperView(
-            frame: NSRect(
-                x: 0,
-                y: 0,
-                width: 1920,
-                height: 1080
-            ),
+            frame: testFrame,
             renderer: renderer
         )
 
-        #expect(
-            renderer.playerLayer.superlayer === view.layer
-        )
+        let containsPlayerLayer =
+            view.layer?.sublayers?.contains {
+                $0 === renderer.playerLayer
+            } ?? false
+
+        #expect(containsPlayerLayer)
     }
 
     @Test
@@ -59,19 +122,15 @@ struct WallpaperStudioTests {
         let renderer = makeTestRenderer()
 
         let view = VideoWallpaperView(
-            frame: NSRect(
-                x: 0,
-                y: 0,
-                width: 1920,
-                height: 1080
-            ),
+            frame: testFrame,
             renderer: renderer
         )
 
         view.layout()
 
         #expect(
-            renderer.playerLayer.frame == view.bounds
+            renderer.playerLayer.frame
+                == view.bounds
         )
     }
 
@@ -80,12 +139,7 @@ struct WallpaperStudioTests {
         let renderer = makeTestRenderer()
 
         let view = VideoWallpaperView(
-            frame: NSRect(
-                x: 0,
-                y: 0,
-                width: 1920,
-                height: 1080
-            ),
+            frame: testFrame,
             renderer: renderer
         )
 
@@ -99,15 +153,27 @@ struct WallpaperStudioTests {
         view.layout()
 
         #expect(
-            renderer.playerLayer.frame == view.bounds
+            renderer.playerLayer.frame
+                == view.bounds
         )
     }
 
     // MARK: - Helpers
 
+    private var testFrame: NSRect {
+        NSRect(
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080
+        )
+    }
+
     private func makeTestRenderer() -> VideoWallpaperRenderer {
         let asset = AVMutableComposition()
-        let playerItem = AVPlayerItem(asset: asset)
+        let playerItem = AVPlayerItem(
+            asset: asset
+        )
 
         return VideoWallpaperRenderer(
             playerItem: playerItem,

@@ -7,9 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		9C9535F430587EB00044004E /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C9535F330587EAE0044004E /* AppDelegate.swift */; };
-		A10000000000000000000001 /* WallpaperStudioApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* WallpaperStudioApp.swift */; };
-		A10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ContentView.swift */; };
 		A10000000000000000000003 /* WallpaperStudioTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* WallpaperStudioTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -24,15 +21,14 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		9C9535F330587EAE0044004E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		A20000000000000000000001 /* WallpaperStudioApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WallpaperStudioApp.swift; sourceTree = "<group>"; };
-		A20000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* WallpaperStudioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WallpaperStudioTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000004 /* WallpaperStudio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WallpaperStudio.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000005 /* WallpaperStudioTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WallpaperStudioTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		9C0E7BC9305CC778003BC32E /* App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = App; sourceTree = "<group>"; };
+		9C0E7BCA305CC784003BC32E /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
 		9C3D52593055E7680034F5DB /* Support */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Support; sourceTree = "<group>"; };
 		9C9535ED305879500044004E /* Platform */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Platform; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -67,11 +63,10 @@
 		A50000000000000000000002 /* WallpaperStudio */ = {
 			isa = PBXGroup;
 			children = (
+				9C0E7BCA305CC784003BC32E /* Views */,
+				9C0E7BC9305CC778003BC32E /* App */,
 				9C9535ED305879500044004E /* Platform */,
 				9C3D52593055E7680034F5DB /* Support */,
-				A20000000000000000000001 /* WallpaperStudioApp.swift */,
-				9C9535F330587EAE0044004E /* AppDelegate.swift */,
-				A20000000000000000000002 /* ContentView.swift */,
 			);
 			path = WallpaperStudio;
 			sourceTree = "<group>";
@@ -109,6 +104,8 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				9C0E7BC9305CC778003BC32E /* App */,
+				9C0E7BCA305CC784003BC32E /* Views */,
 				9C3D52593055E7680034F5DB /* Support */,
 				9C9535ED305879500044004E /* Platform */,
 			);
@@ -195,9 +192,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000000000000000000001 /* WallpaperStudioApp.swift in Sources */,
-				9C9535F430587EB00044004E /* AppDelegate.swift in Sources */,
-				A10000000000000000000002 /* ContentView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

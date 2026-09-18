@@ -6,12 +6,15 @@ final class WallpaperWindowManager: NSObject {
 
     private var windows: [NSWindow] = []
 
-    private let developmentVideoURL = URL(
-        fileURLWithPath:
-            "/Users/lepus/Downloads/valley-misty-moewalls-com.mp4"
-    )
+    private let videoURL: URL
 
-    override init() {
+    private(set) var scalingMode: WallpaperScalingMode = .fill
+
+    init(
+        videoURL: URL = DevelopmentAssets.videoURL
+    ) {
+        self.videoURL = videoURL
+
         super.init()
 
         Logger.display.info(
@@ -24,6 +27,30 @@ final class WallpaperWindowManager: NSObject {
 
     deinit {
         NotificationCenter.default.removeObserver(self)
+    }
+
+    // MARK: - Scaling
+
+    func setScalingMode(_ mode: WallpaperScalingMode) {
+        guard scalingMode != mode else {
+            return
+        }
+
+        scalingMode = mode
+
+        Logger.rendering.info(
+            "Wallpaper scaling mode changed to \(mode.displayName, privacy: .public)"
+        )
+
+        for window in windows {
+            guard
+                let videoView = window.contentView as? VideoWallpaperView
+            else {
+                continue
+            }
+
+            videoView.scalingMode = mode
+        }
     }
 
     // MARK: - Window Management
@@ -45,10 +72,7 @@ final class WallpaperWindowManager: NSObject {
             window.orderFront(nil)
 
             Logger.display.info(
-                """
-                Wallpaper window shown on \
-                \(screen.localizedName, privacy: .public)
-                """
+                "Wallpaper window shown on \(screen.localizedName, privacy: .public)"
             )
         }
     }
@@ -95,7 +119,7 @@ final class WallpaperWindowManager: NSObject {
             defer: false
         )
 
-        // Keep the wallpaper across Spaces and stationary in Mission Control.
+        // Keep the wallpaper visible across Spaces and fixed in Mission Control.
         window.collectionBehavior = [
             .canJoinAllSpaces,
             .stationary,
@@ -113,8 +137,8 @@ final class WallpaperWindowManager: NSObject {
             )
         )
 
-        // NSView coordinates are local to the window, unlike NSScreen.frame,
-        // whose x/y coordinates belong to the global desktop.
+        // NSView coordinates are local to the window. NSScreen.frame uses
+        // global desktop coordinates, so the content view starts at (0, 0).
         let contentFrame = NSRect(
             origin: .zero,
             size: screen.frame.size
@@ -123,7 +147,8 @@ final class WallpaperWindowManager: NSObject {
         do {
             let videoView = try VideoWallpaperView(
                 frame: contentFrame,
-                sourceURL: developmentVideoURL
+                sourceURL: videoURL,
+                scalingMode: scalingMode
             )
 
             videoView.autoresizingMask = [
@@ -132,6 +157,8 @@ final class WallpaperWindowManager: NSObject {
             ]
 
             window.contentView = videoView
+
+            videoView.play()
         } catch {
             Logger.rendering.error(
                 """
@@ -149,7 +176,7 @@ final class WallpaperWindowManager: NSObject {
 
     // MARK: - Display Changes
 
-    /// Watches for monitors being connected, disconnected, or reconfigured.
+    /// Watches for displays being connected, disconnected, or reconfigured.
     private func observeScreenChanges() {
         NotificationCenter.default.addObserver(
             self,
