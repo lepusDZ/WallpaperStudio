@@ -14,14 +14,41 @@ struct WallpaperStudioApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
-            ContentView { scalingMode in
-                appDelegate.setScalingMode(scalingMode)
+        Window(
+            "Wallpaper Studio",
+            id: "main-control"
+        ) {
+            ContentView(
+                onStart: {
+                    appDelegate.startWallpaper()
+                },
+                onPause: {
+                    appDelegate.pauseWallpaper()
+                },
+                onResume: {
+                    appDelegate.resumeWallpaper()
+                },
+                onStop: {
+                    appDelegate.stopWallpaper()
+                },
+                onLifecycleStressTest: {
+                    appDelegate.runLifecycleStressTest()
+                },
+                onScalingModeChange: { mode in
+                    appDelegate.setScalingMode(mode)
+                }
+            )
+            .onAppear {
+                Logger.app.info(
+                    "Main control window appeared"
+                )
             }
         }
         .defaultSize(
             width: 820,
             height: 520
         )
+        .restorationBehavior(.disabled)
+        .defaultLaunchBehavior(.presented)
     }
 }

@@ -4,43 +4,114 @@ import OSLog
 @MainActor
 final class WallpaperWindowManager: NSObject {
 
-    private var windows: [NSWindow] = []
-
     private let videoURL: URL
 
-    private(set) var scalingMode: WallpaperScalingMode = .fill
+    private var windows: [NSWindow] = []
+
+    private var isObservingScreenChanges = false
+
+    private(set) var scalingMode: WallpaperScalingMode
 
     init(
-        videoURL: URL = DevelopmentAssets.videoURL
+        videoURL: URL,
+        scalingMode: WallpaperScalingMode
     ) {
         self.videoURL = videoURL
+        self.scalingMode = scalingMode
 
         super.init()
 
         Logger.display.info(
             "WallpaperWindowManager initialized"
         )
-
-        createWallpaperWindows()
-        observeScreenChanges()
     }
 
     deinit {
         NotificationCenter.default.removeObserver(self)
+
+        Logger.display.debug(
+            "WallpaperWindowManager released"
+        )
+    }
+
+    // MARK: - Lifecycle
+
+    /// Creates and displays wallpaper windows.
+    ///
+    /// Returns true when at least one wallpaper window was created.
+    func start() -> Bool {
+        guard windows.isEmpty else {
+            Logger.display.debug(
+                "Window manager start ignored because windows already exist"
+            )
+            return true
+        }
+
+        createWallpaperWindows()
+
+        guard !windows.isEmpty else {
+            Logger.display.error(
+                "No wallpaper windows could be created"
+            )
+            return false
+        }
+
+        observeScreenChanges()
+
+        return true
+    }
+
+    func pause() {
+        Logger.display.info(
+            "Pausing wallpaper windows"
+        )
+
+        for window in windows {
+            guard
+                let videoView = window.contentView as? VideoWallpaperView
+            else {
+                continue
+            }
+
+            videoView.pause()
+        }
+    }
+
+    func resume() {
+        Logger.display.info(
+            "Resuming wallpaper windows"
+        )
+
+        for window in windows {
+            guard
+                let videoView = window.contentView as? VideoWallpaperView
+            else {
+                continue
+            }
+
+            videoView.resume()
+        }
+    }
+
+    func stop() {
+        Logger.display.info(
+            "Stopping wallpaper windows"
+        )
+
+        stopObservingScreenChanges()
+        removeWallpaperWindows()
     }
 
     // MARK: - Scaling
 
-    func setScalingMode(_ mode: WallpaperScalingMode) {
+    func setScalingMode(
+        _ mode: WallpaperScalingMode
+    ) {
         guard scalingMode != mode else {
             return
         }
 
         scalingMode = mode
-
-        Logger.rendering.info(
-            "Wallpaper scaling mode changed to \(mode.displayName, privacy: .public)"
-        )
 
         for window in windows {
             guard
@@ -55,7 +126,6 @@ final class WallpaperWindowManager: NSObject {
 
     // MARK: - Window Management
 
-    /// Creates one wallpaper window for every connected display.
     private func createWallpaperWindows() {
         let screens = NSScreen.screens
 
@@ -64,7 +134,9 @@ final class WallpaperWindowManager: NSObject {
         )
 
         for screen in screens {
-            guard let window = makeWallpaperWindow(for: screen) else {
+            guard
+                let window = makeWallpaperWindow(for: screen)
+            else {
                 continue
             }
 
@@ -77,24 +149,27 @@ final class WallpaperWindowManager: NSObject {
         }
     }
 
-    /// Stops playback and removes all wallpaper windows.
     private func removeWallpaperWindows() {
         Logger.display.info(
             "Removing \(self.windows.count) wallpaper window(s)"
         )
 
         for window in windows {
-            if let videoView = window.contentView as? VideoWallpaperView {
-                videoView.pause()
+            if let videoView =
+                window.contentView as? VideoWallpaperView {
+
+                videoView.stop()
             }
 
-            window.orderOut(nil)
+            // Break the window -> view -> renderer ownership chain explicitly.
+            window.contentView = nil
+
+            window.close()
         }
 
         windows.removeAll()
     }
 
-    /// Creates and configures a wallpaper window for one display.
     private func makeWallpaperWindow(
         for screen: NSScreen
     ) -> NSWindow? {
@@ -118,8 +193,9 @@ final class WallpaperWindowManager: NSObject {
             backing: .buffered,
             defer: false
         )
+        
+        window.isReleasedWhenClosed = false
 
-        // Keep the wallpaper visible across Spaces and fixed in Mission Control.
         window.collectionBehavior = [
             .canJoinAllSpaces,
             .stationary,
@@ -130,15 +206,14 @@ final class WallpaperWindowManager: NSObject {
         window.hasShadow = false
         window.ignoresMouseEvents = true
 
-        // Keep the wallpaper underneath normal application windows.
         window.level = NSWindow.Level(
             rawValue: Int(
                 CGWindowLevelForKey(.desktopWindow)
             )
         )
 
-        // NSView coordinates are local to the window. NSScreen.frame uses
-        // global desktop coordinates, so the content view starts at (0, 0).
+        // NSScreen.frame uses global desktop coordinates.
+        // An NSView inside the window uses local coordinates starting at 0, 0.
         let contentFrame = NSRect(
             origin: .zero,
             size: screen.frame.size
@@ -158,7 +233,9 @@ final class WallpaperWindowManager: NSObject {
 
             window.contentView = videoView
 
-            videoView.play()
+            videoView.resume()
+
+            return window
         } catch {
             Logger.rendering.error(
                 """
@@ -170,14 +247,15 @@ final class WallpaperWindowManager: NSObject {
 
             return nil
         }
-
-        return window
     }
 
     // MARK: - Display Changes
 
-    /// Watches for displays being connected, disconnected, or reconfigured.
     private func observeScreenChanges() {
+        guard !isObservingScreenChanges else {
+            return
+        }
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(screenConfigurationDidChange),
@@ -185,8 +263,28 @@ final class WallpaperWindowManager: NSObject {
             object: nil
         )
 
+        isObservingScreenChanges = true
+
         Logger.display.debug(
             "Started observing display configuration changes"
+        )
+    }
+
+    private func stopObservingScreenChanges() {
+        guard isObservingScreenChanges else {
+            return
+        }
+
+        NotificationCenter.default.removeObserver(
+            self,
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
+
+        isObservingScreenChanges = false
+
+        Logger.display.debug(
+            "Stopped observing display configuration changes"
         )
     }
 

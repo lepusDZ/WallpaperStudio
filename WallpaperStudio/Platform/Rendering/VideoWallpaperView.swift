@@ -17,7 +17,6 @@ final class VideoWallpaperView: NSView {
         }
     }
 
-    /// Normal initializer used when displaying a video from disk.
     convenience init(
         frame frameRect: NSRect,
         sourceURL: URL,
@@ -34,7 +33,6 @@ final class VideoWallpaperView: NSView {
         )
     }
 
-    /// Allows tests to provide their own renderer.
     init(
         frame frameRect: NSRect,
         renderer: VideoWallpaperRenderer,
@@ -57,20 +55,31 @@ final class VideoWallpaperView: NSView {
             "VideoWallpaperView does not support initialization from NSCoder"
         )
     }
+    
+    deinit {
+        Logger.rendering.debug(
+            "VideoWallpaperView released"
+        )
+    }
 
-    /// Keeps the AVPlayerLayer matched to the NSView when its size changes.
     override func layout() {
         super.layout()
 
         renderer.playerLayer.frame = bounds
     }
 
-    func play() {
-        renderer.play()
-    }
+    // MARK: - Lifecycle
 
     func pause() {
         renderer.pause()
+    }
+
+    func resume() {
+        renderer.play()
+    }
+
+    func stop() {
+        renderer.stop()
     }
 
     // MARK: - Setup
@@ -78,17 +87,22 @@ final class VideoWallpaperView: NSView {
     private func configurePlayerLayer() {
         wantsLayer = true
 
-        layer?.backgroundColor = NSColor.black.cgColor
+        layer?.backgroundColor =
+            NSColor.black.cgColor
+
         layer?.masksToBounds = true
 
         renderer.playerLayer.frame = bounds
 
         applyScalingMode()
 
-        layer?.addSublayer(renderer.playerLayer)
+        layer?.addSublayer(
+            renderer.playerLayer
+        )
     }
 
     private func applyScalingMode() {
-        renderer.playerLayer.videoGravity = scalingMode.avVideoGravity
+        renderer.playerLayer.videoGravity =
+            scalingMode.avVideoGravity
     }
 }
