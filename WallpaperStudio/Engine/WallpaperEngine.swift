@@ -1,21 +1,51 @@
 import Foundation
 import OSLog
+import Cocoa
 
 @MainActor
 final class WallpaperEngine {
 
-    private(set) var videoURL: URL?
+    private(set)
+    var videoURL: URL?
 
-    private var windowManager: WallpaperWindowManager?
+    private let displayManager:
+        DisplayManager
 
-    private(set) var state: WallpaperEngineState = .stopped
+    private var displaySessions:
+        [DisplayID: WallpaperDisplaySession] = [:]
 
-    private(set) var scalingMode: WallpaperScalingMode = .fill
+    private(set)
+    var state:
+        WallpaperEngineState = .stopped
 
-    init() {
+    private(set)
+    var scalingMode:
+        WallpaperScalingMode = .fill
+
+    init(
+        displayManager:
+            DisplayManager = DisplayManager()
+    ) {
+        self.displayManager =
+            displayManager
+
+        displayManager.onTopologyChange = {
+            [weak self] change in
+
+            self?.handleTopologyChange(
+                change
+            )
+        }
+
         Logger.engine.info(
             "WallpaperEngine initialized"
         )
+    }
+
+    // MARK: - Display Discovery
+
+    func startDisplayMonitoring() {
+        displayManager.start()
     }
 
     // MARK: - Video Source
@@ -66,27 +96,33 @@ final class WallpaperEngine {
             return false
         }
 
+        startDisplayMonitoring()
+
         Logger.engine.info(
-            "Starting wallpaper engine"
+            "Starting wallpaper engine for \(self.displayManager.displays.count) display(s)"
         )
 
-        let manager = WallpaperWindowManager(
-            videoURL: videoURL,
-            scalingMode: scalingMode
+        createMissingSessions(
+            for:
+                displayManager.displays,
+            sourceURL:
+                videoURL,
+            playing:
+                true
         )
 
-        guard manager.start() else {
+        guard !displaySessions.isEmpty
+        else {
             Logger.engine.error(
-                "Wallpaper engine failed to start"
+                "Wallpaper engine failed to create any display sessions"
             )
             return false
         }
 
-        windowManager = manager
         state = .running
 
         Logger.engine.info(
-            "Wallpaper engine started"
+            "Wallpaper engine started with \(self.displaySessions.count) display session(s)"
         )
 
         return true
@@ -97,7 +133,11 @@ final class WallpaperEngine {
             return
         }
 
-        windowManager?.pause()
+        for session
+            in displaySessions.values {
+
+            session.pause()
+        }
 
         state = .paused
 
@@ -111,7 +151,11 @@ final class WallpaperEngine {
             return
         }
 
-        windowManager?.resume()
+        for session
+            in displaySessions.values {
+
+            session.resume()
+        }
 
         state = .running
 
@@ -129,8 +173,13 @@ final class WallpaperEngine {
             "Stopping wallpaper engine"
         )
 
-        windowManager?.stop()
-        windowManager = nil
+        for session
+            in displaySessions.values {
+
+            session.stop()
+        }
+
+        displaySessions.removeAll()
 
         state = .stopped
 
@@ -142,7 +191,8 @@ final class WallpaperEngine {
     // MARK: - Configuration
 
     func setScalingMode(
-        _ mode: WallpaperScalingMode
+        _ mode:
+            WallpaperScalingMode
     ) {
         guard scalingMode != mode else {
             return
@@ -150,10 +200,198 @@ final class WallpaperEngine {
 
         scalingMode = mode
 
-        windowManager?.setScalingMode(mode)
+        for session
+            in displaySessions.values {
+
+            session.setScalingMode(
+                mode
+            )
+        }
 
         Logger.engine.info(
             "Scaling mode changed to \(mode.displayName, privacy: .public)"
         )
+    }
+
+    // MARK: - Display Sessions
+
+    private func handleTopologyChange(
+        _ change:
+            DisplayTopologyChange
+    ) {
+        Logger.engine.info(
+            "Handling display topology change"
+        )
+
+        guard state != .stopped,
+              let videoURL
+        else {
+            return
+        }
+
+        reconcileSessions(
+            with:
+                change.current,
+            sourceURL:
+                videoURL
+        )
+    }
+
+    private func reconcileSessions(
+        with displays:
+            [DisplayDescriptor],
+        sourceURL: URL
+    ) {
+        let currentIDs =
+            Set(
+                displays.map(
+                    \.id
+                )
+            )
+
+        let removedIDs =
+            displaySessions.keys
+                .filter {
+                    !currentIDs
+                        .contains($0)
+                }
+
+        for displayID
+            in removedIDs {
+
+            guard let session =
+                displaySessions
+                    .removeValue(
+                        forKey:
+                            displayID
+                    )
+            else {
+                continue
+            }
+
+            Logger.engine.info(
+                "Removing wallpaper session for display \(displayID.rawValue, privacy: .public)"
+            )
+
+            session.stop()
+        }
+
+        for display in displays {
+            guard let screen =
+                displayManager.screen(
+                    for:
+                        display.id
+                )
+            else {
+                Logger.display.error(
+                    "Could not resolve NSScreen for display \(display.id.rawValue, privacy: .public)"
+                )
+                continue
+            }
+
+            if let session =
+                displaySessions[
+                    display.id
+                ] {
+
+                session.update(
+                    display:
+                        display,
+                    screen:
+                        screen
+                )
+
+                continue
+            }
+
+            createSession(
+                for:
+                    display,
+                screen:
+                    screen,
+                sourceURL:
+                    sourceURL,
+                playing:
+                    state == .running
+            )
+        }
+    }
+
+    private func createMissingSessions(
+        for displays:
+            [DisplayDescriptor],
+        sourceURL: URL,
+        playing: Bool
+    ) {
+        for display in displays {
+            guard displaySessions[
+                display.id
+            ] == nil
+            else {
+                continue
+            }
+
+            guard let screen =
+                displayManager.screen(
+                    for:
+                        display.id
+                )
+            else {
+                Logger.display.error(
+                    "Could not resolve NSScreen for display \(display.id.rawValue, privacy: .public)"
+                )
+                continue
+            }
+
+            createSession(
+                for:
+                    display,
+                screen:
+                    screen,
+                sourceURL:
+                    sourceURL,
+                playing:
+                    playing
+            )
+        }
+    }
+
+    private func createSession(
+        for display:
+            DisplayDescriptor,
+        screen: NSScreen,
+        sourceURL: URL,
+        playing: Bool
+    ) {
+        do {
+            let session =
+                try WallpaperDisplaySession(
+                    display:
+                        display,
+                    screen:
+                        screen,
+                    sourceURL:
+                        sourceURL,
+                    scalingMode:
+                        scalingMode
+                )
+
+            displaySessions[
+                display.id
+            ] = session
+
+            session.show(
+                playing:
+                    playing
+            )
+
+            Logger.engine.info(
+                "Created wallpaper session for \(display.name, privacy: .public) [\(display.id.rawValue, privacy: .public)]"
+            )
+        } catch {
+            Logger.engine.error(
+                "Failed to create wallpaper session for \(display.name, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
+        }
     }
 }

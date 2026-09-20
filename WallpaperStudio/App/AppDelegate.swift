@@ -21,6 +21,8 @@ final class AppDelegate:
         Logger.app.info(
             "Application finished launching"
         )
+
+        wallpaperEngine.startDisplayMonitoring()
     }
 
     func applicationWillTerminate(
