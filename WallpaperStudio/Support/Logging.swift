@@ -24,4 +24,9 @@ extension Logger {
         subsystem: subsystem,
         category: "Rendering"
     )
+
+    static let performance = Logger(
+        subsystem: subsystem,
+        category: "Performance"
+    )
 }

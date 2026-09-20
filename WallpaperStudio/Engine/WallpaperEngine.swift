@@ -1,16 +1,10 @@
 import Foundation
 import OSLog
 
-enum WallpaperEngineState: String {
-    case stopped
-    case running
-    case paused
-}
-
 @MainActor
 final class WallpaperEngine {
 
-    private let videoURL: URL
+    private(set) var videoURL: URL?
 
     private var windowManager: WallpaperWindowManager?
 
@@ -18,25 +12,63 @@ final class WallpaperEngine {
 
     private(set) var scalingMode: WallpaperScalingMode = .fill
 
-    init(
-        videoURL: URL = DevelopmentAssets.videoURL
-    ) {
-        self.videoURL = videoURL
+    init() {
+        Logger.engine.info(
+            "WallpaperEngine initialized"
+        )
+    }
 
-        Logger.engine.info("WallpaperEngine initialized")
+    // MARK: - Video Source
+
+    @discardableResult
+    func setVideoURL(
+        _ url: URL
+    ) -> Bool {
+        guard state == .stopped else {
+            Logger.engine.warning(
+                "Video source can only be changed while stopped"
+            )
+            return false
+        }
+
+        videoURL = url
+
+        Logger.engine.info(
+            "Video source changed to \(url.lastPathComponent, privacy: .public)"
+        )
+
+        return true
+    }
+
+    func clearVideoURL() {
+        guard state == .stopped else {
+            return
+        }
+
+        videoURL = nil
     }
 
     // MARK: - Lifecycle
 
-    func start() {
+    @discardableResult
+    func start() -> Bool {
         guard state == .stopped else {
             Logger.engine.debug(
                 "Start ignored because engine is already \(self.state.rawValue, privacy: .public)"
             )
-            return
+            return true
         }
 
-        Logger.engine.info("Starting wallpaper engine")
+        guard let videoURL else {
+            Logger.engine.warning(
+                "Start ignored because no wallpaper has been selected"
+            )
+            return false
+        }
+
+        Logger.engine.info(
+            "Starting wallpaper engine"
+        )
 
         let manager = WallpaperWindowManager(
             videoURL: videoURL,
@@ -47,7 +79,7 @@ final class WallpaperEngine {
             Logger.engine.error(
                 "Wallpaper engine failed to start"
             )
-            return
+            return false
         }
 
         windowManager = manager
@@ -56,13 +88,12 @@ final class WallpaperEngine {
         Logger.engine.info(
             "Wallpaper engine started"
         )
+
+        return true
     }
 
     func pause() {
         guard state == .running else {
-            Logger.engine.debug(
-                "Pause ignored because engine is \(self.state.rawValue, privacy: .public)"
-            )
             return
         }
 
@@ -77,9 +108,6 @@ final class WallpaperEngine {
 
     func resume() {
         guard state == .paused else {
-            Logger.engine.debug(
-                "Resume ignored because engine is \(self.state.rawValue, privacy: .public)"
-            )
             return
         }
 
@@ -94,9 +122,6 @@ final class WallpaperEngine {
 
     func stop() {
         guard state != .stopped else {
-            Logger.engine.debug(
-                "Stop ignored because engine is already stopped"
-            )
             return
         }
 
@@ -105,9 +130,6 @@ final class WallpaperEngine {
         )
 
         windowManager?.stop()
-
-        // Removing our strong reference allows the manager and everything
-        // it owns to be released once no other references remain.
         windowManager = nil
 
         state = .stopped

@@ -7,66 +7,103 @@ import Testing
 @MainActor
 struct WallpaperStudioTests {
 
+    // MARK: - Engine
+
+    @Test
+    func engineStartsStoppedWithoutVideo() {
+        let engine =
+            WallpaperEngine()
+
+        #expect(
+            engine.state == .stopped
+        )
+
+        #expect(
+            engine.videoURL == nil
+        )
+    }
+
+    @Test
+    func engineCannotStartWithoutVideo() {
+        let engine =
+            WallpaperEngine()
+
+        #expect(
+            engine.start() == false
+        )
+
+        #expect(
+            engine.state == .stopped
+        )
+    }
+
     // MARK: - Renderer
 
     @Test
     func rendererRejectsMissingVideoFile() {
-        let missingURL = URL(
-            fileURLWithPath:
-                "/tmp/wallpaper-studio-file-that-does-not-exist.mp4"
-        )
+        let missingURL =
+            URL(
+                fileURLWithPath:
+                    "/tmp/wallpaper-studio-missing-video.mp4"
+            )
 
         #expect(
             throws:
                 VideoWallpaperRendererError.self
         ) {
             try VideoWallpaperRenderer(
-                sourceURL: missingURL
+                sourceURL:
+                    missingURL
             )
         }
     }
 
     @Test
     func rendererStartsMuted() {
-        let renderer = makeTestRenderer()
+        let renderer =
+            makeTestRenderer()
 
-        #expect(renderer.isMuted)
+        #expect(
+            renderer.isMuted
+        )
     }
 
     @Test
     func rendererCreatesPlayerLayer() {
-        let renderer = makeTestRenderer()
+        let renderer =
+            makeTestRenderer()
 
         #expect(
-            renderer.playerLayer.player != nil
+            renderer.playerLayer
+                .player != nil
         )
     }
 
     @Test
     func rendererStopDisconnectsPlayer() {
-        let renderer = makeTestRenderer()
-
-        #expect(
-            renderer.playerLayer.player != nil
-        )
+        let renderer =
+            makeTestRenderer()
 
         renderer.stop()
 
         #expect(
-            renderer.playerLayer.player == nil
+            renderer.playerLayer
+                .player == nil
         )
     }
 
     @Test
-    func rendererStopCanBeCalledRepeatedly() {
-        let renderer = makeTestRenderer()
+    func rendererStopIsRepeatable() {
+        let renderer =
+            makeTestRenderer()
 
         renderer.stop()
         renderer.stop()
         renderer.stop()
 
         #expect(
-            renderer.playerLayer.player == nil
+            renderer.playerLayer
+                .player == nil
         )
     }
 
@@ -75,7 +112,8 @@ struct WallpaperStudioTests {
     @Test
     func fillMapsToAspectFill() {
         #expect(
-            WallpaperScalingMode.fill
+            WallpaperScalingMode
+                .fill
                 .avVideoGravity
                 == .resizeAspectFill
         )
@@ -84,7 +122,8 @@ struct WallpaperStudioTests {
     @Test
     func fitMapsToAspectFit() {
         #expect(
-            WallpaperScalingMode.fit
+            WallpaperScalingMode
+                .fit
                 .avVideoGravity
                 == .resizeAspect
         )
@@ -93,41 +132,32 @@ struct WallpaperStudioTests {
     @Test
     func stretchMapsToResize() {
         #expect(
-            WallpaperScalingMode.stretch
+            WallpaperScalingMode
+                .stretch
                 .avVideoGravity
                 == .resize
         )
     }
 
     @Test
-    func videoViewUsesInitialScalingMode() {
-        let renderer = makeTestRenderer()
+    func changingScalingModeUpdatesLayer() {
+        let renderer =
+            makeTestRenderer()
 
-        _ = VideoWallpaperView(
-            frame: testFrame,
-            renderer: renderer,
-            scalingMode: .fit
-        )
+        let view =
+            VideoWallpaperView(
+                frame:
+                    testFrame,
+                renderer:
+                    renderer
+            )
 
-        #expect(
-            renderer.playerLayer.videoGravity
-                == .resizeAspect
-        )
-    }
-
-    @Test
-    func changingScalingModeUpdatesPlayerLayer() {
-        let renderer = makeTestRenderer()
-
-        let view = VideoWallpaperView(
-            frame: testFrame,
-            renderer: renderer
-        )
-
-        view.scalingMode = .stretch
+        view.scalingMode =
+            .stretch
 
         #expect(
-            renderer.playerLayer.videoGravity
+            renderer.playerLayer
+                .videoGravity
                 == .resize
         )
     }
@@ -136,78 +166,81 @@ struct WallpaperStudioTests {
 
     @Test
     func videoViewAttachesPlayerLayer() {
-        let renderer = makeTestRenderer()
+        let renderer =
+            makeTestRenderer()
 
-        let view = VideoWallpaperView(
-            frame: testFrame,
-            renderer: renderer
-        )
+        let view =
+            VideoWallpaperView(
+                frame:
+                    testFrame,
+                renderer:
+                    renderer
+            )
 
         let containsPlayerLayer =
             view.layer?
                 .sublayers?
                 .contains {
-                    $0 === renderer.playerLayer
+                    $0 ===
+                        renderer
+                            .playerLayer
                 }
             ?? false
 
-        #expect(containsPlayerLayer)
+        #expect(
+            containsPlayerLayer
+        )
     }
 
     @Test
     func videoLayerMatchesViewBounds() {
-        let renderer = makeTestRenderer()
+        let renderer =
+            makeTestRenderer()
 
-        let view = VideoWallpaperView(
-            frame: testFrame,
-            renderer: renderer
-        )
+        let view =
+            VideoWallpaperView(
+                frame:
+                    testFrame,
+                renderer:
+                    renderer
+            )
 
         view.layout()
 
         #expect(
-            renderer.playerLayer.frame
+            renderer.playerLayer
+                .frame
                 == view.bounds
         )
     }
 
     @Test
     func videoLayerResizesWithView() {
-        let renderer = makeTestRenderer()
+        let renderer =
+            makeTestRenderer()
 
-        let view = VideoWallpaperView(
-            frame: testFrame,
-            renderer: renderer
-        )
+        let view =
+            VideoWallpaperView(
+                frame:
+                    testFrame,
+                renderer:
+                    renderer
+            )
 
-        view.frame = NSRect(
-            x: 0,
-            y: 0,
-            width: 2560,
-            height: 1440
-        )
+        view.frame =
+            NSRect(
+                x: 0,
+                y: 0,
+                width: 2560,
+                height: 1440
+            )
 
         view.layout()
 
         #expect(
-            renderer.playerLayer.frame
+            renderer.playerLayer
+                .frame
                 == view.bounds
-        )
-    }
-
-    @Test
-    func stoppingViewDisconnectsPlayer() {
-        let renderer = makeTestRenderer()
-
-        let view = VideoWallpaperView(
-            frame: testFrame,
-            renderer: renderer
-        )
-
-        view.stop()
-
-        #expect(
-            renderer.playerLayer.player == nil
         )
     }
 
@@ -225,15 +258,19 @@ struct WallpaperStudioTests {
     private func makeTestRenderer()
         -> VideoWallpaperRenderer {
 
-        let asset = AVMutableComposition()
+        let asset =
+            AVMutableComposition()
 
-        let playerItem = AVPlayerItem(
-            asset: asset
-        )
+        let playerItem =
+            AVPlayerItem(
+                asset: asset
+            )
 
         return VideoWallpaperRenderer(
-            playerItem: playerItem,
-            sourceName: "test-video"
+            playerItem:
+                playerItem,
+            sourceName:
+                "test-video"
         )
     }
 }

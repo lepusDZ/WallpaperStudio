@@ -9,6 +9,7 @@ final class WallpaperWindowManager: NSObject {
     private var windows: [NSWindow] = []
 
     private var isObservingScreenChanges = false
+    private var isPaused = false
 
     private(set) var scalingMode: WallpaperScalingMode
 
@@ -36,9 +37,6 @@ final class WallpaperWindowManager: NSObject {
 
     // MARK: - Lifecycle
 
-    /// Creates and displays wallpaper windows.
-    ///
-    /// Returns true when at least one wallpaper window was created.
     func start() -> Bool {
         guard windows.isEmpty else {
             Logger.display.debug(
@@ -46,6 +44,8 @@ final class WallpaperWindowManager: NSObject {
             )
             return true
         }
+
+        isPaused = false
 
         createWallpaperWindows()
 
@@ -62,13 +62,19 @@ final class WallpaperWindowManager: NSObject {
     }
 
     func pause() {
+        guard !isPaused else {
+            return
+        }
+
+        isPaused = true
+
         Logger.display.info(
             "Pausing wallpaper windows"
         )
 
         for window in windows {
-            guard
-                let videoView = window.contentView as? VideoWallpaperView
+            guard let videoView =
+                window.contentView as? VideoWallpaperView
             else {
                 continue
             }
@@ -78,13 +84,19 @@ final class WallpaperWindowManager: NSObject {
     }
 
     func resume() {
+        guard isPaused else {
+            return
+        }
+
+        isPaused = false
+
         Logger.display.info(
             "Resuming wallpaper windows"
         )
 
         for window in windows {
-            guard
-                let videoView = window.contentView as? VideoWallpaperView
+            guard let videoView =
+                window.contentView as? VideoWallpaperView
             else {
                 continue
             }
@@ -100,6 +112,8 @@ final class WallpaperWindowManager: NSObject {
 
         stopObservingScreenChanges()
         removeWallpaperWindows()
+
+        isPaused = false
     }
 
     // MARK: - Scaling
@@ -114,8 +128,8 @@ final class WallpaperWindowManager: NSObject {
         scalingMode = mode
 
         for window in windows {
-            guard
-                let videoView = window.contentView as? VideoWallpaperView
+            guard let videoView =
+                window.contentView as? VideoWallpaperView
             else {
                 continue
             }
@@ -134,8 +148,8 @@ final class WallpaperWindowManager: NSObject {
         )
 
         for screen in screens {
-            guard
-                let window = makeWallpaperWindow(for: screen)
+            guard let window =
+                makeWallpaperWindow(for: screen)
             else {
                 continue
             }
@@ -161,9 +175,7 @@ final class WallpaperWindowManager: NSObject {
                 videoView.stop()
             }
 
-            // Break the window -> view -> renderer ownership chain explicitly.
             window.contentView = nil
-
             window.close()
         }
 
@@ -193,7 +205,8 @@ final class WallpaperWindowManager: NSObject {
             backing: .buffered,
             defer: false
         )
-        
+
+        // Swift ARC owns the NSWindow through our windows array.
         window.isReleasedWhenClosed = false
 
         window.collectionBehavior = [
@@ -212,8 +225,6 @@ final class WallpaperWindowManager: NSObject {
             )
         )
 
-        // NSScreen.frame uses global desktop coordinates.
-        // An NSView inside the window uses local coordinates starting at 0, 0.
         let contentFrame = NSRect(
             origin: .zero,
             size: screen.frame.size
@@ -233,7 +244,9 @@ final class WallpaperWindowManager: NSObject {
 
             window.contentView = videoView
 
-            videoView.resume()
+            if !isPaused {
+                videoView.resume()
+            }
 
             return window
         } catch {

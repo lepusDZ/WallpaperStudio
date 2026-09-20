@@ -4,7 +4,9 @@ import SwiftUI
 @main
 struct WallpaperStudioApp: App {
 
-    @NSApplicationDelegateAdaptor(AppDelegate.self)
+    @NSApplicationDelegateAdaptor(
+        AppDelegate.self
+    )
     private var appDelegate
 
     init() {
@@ -19,23 +21,40 @@ struct WallpaperStudioApp: App {
             id: "main-control"
         ) {
             ContentView(
+                benchmark:
+                    appDelegate
+                        .performanceBenchmark,
+                onChooseVideo: {
+                    appDelegate
+                        .chooseWallpaper()
+                },
                 onStart: {
-                    appDelegate.startWallpaper()
+                    appDelegate
+                        .startWallpaper()
                 },
                 onPause: {
-                    appDelegate.pauseWallpaper()
+                    appDelegate
+                        .pauseWallpaper()
                 },
                 onResume: {
-                    appDelegate.resumeWallpaper()
+                    appDelegate
+                        .resumeWallpaper()
                 },
                 onStop: {
-                    appDelegate.stopWallpaper()
+                    appDelegate
+                        .stopWallpaper()
                 },
                 onLifecycleStressTest: {
-                    appDelegate.runLifecycleStressTest()
+                    appDelegate
+                        .runLifecycleStressTest()
                 },
-                onScalingModeChange: { mode in
-                    appDelegate.setScalingMode(mode)
+                onScalingModeChange: {
+                    mode in
+
+                    appDelegate
+                        .setScalingMode(
+                            mode
+                        )
                 }
             )
             .onAppear {
@@ -46,9 +65,13 @@ struct WallpaperStudioApp: App {
         }
         .defaultSize(
             width: 820,
-            height: 520
+            height: 760
         )
-        .restorationBehavior(.disabled)
-        .defaultLaunchBehavior(.presented)
+        .restorationBehavior(
+            .disabled
+        )
+        .defaultLaunchBehavior(
+            .presented
+        )
     }
 }

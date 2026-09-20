@@ -55,7 +55,7 @@ final class VideoWallpaperView: NSView {
             "VideoWallpaperView does not support initialization from NSCoder"
         )
     }
-    
+
     deinit {
         Logger.rendering.debug(
             "VideoWallpaperView released"

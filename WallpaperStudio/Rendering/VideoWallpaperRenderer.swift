@@ -8,7 +8,8 @@ final class VideoWallpaperRenderer {
 
     private let player: AVQueuePlayer
 
-    // AVPlayerLooper must remain strongly referenced while looping.
+    // AVPlayerLooper must remain strongly referenced
+    // for looping to continue.
     private let looper: AVPlayerLooper
 
     private var statusObservation: NSKeyValueObservation?
@@ -24,11 +25,9 @@ final class VideoWallpaperRenderer {
     convenience init(
         sourceURL: URL
     ) throws {
-        guard
-            FileManager.default.fileExists(
-                atPath: sourceURL.path
-            )
-        else {
+        guard FileManager.default.fileExists(
+            atPath: sourceURL.path
+        ) else {
             Logger.rendering.error(
                 "Video file not found: \(sourceURL.path, privacy: .public)"
             )
@@ -57,16 +56,15 @@ final class VideoWallpaperRenderer {
         sourceName: String
     ) {
         let player = AVQueuePlayer()
-
         player.isMuted = true
 
         self.player = player
 
-        self.playerLayer = AVPlayerLayer(
+        playerLayer = AVPlayerLayer(
             player: player
         )
 
-        self.looper = AVPlayerLooper(
+        looper = AVPlayerLooper(
             player: player,
             templateItem: playerItem
         )
@@ -79,7 +77,7 @@ final class VideoWallpaperRenderer {
             "Video source configured: \(sourceName, privacy: .public)"
         )
     }
-    
+
     deinit {
         Logger.rendering.debug(
             "VideoWallpaperRenderer released: \(self.sourceName, privacy: .public)"
@@ -103,9 +101,6 @@ final class VideoWallpaperRenderer {
 
     func pause() {
         guard !isStopped else {
-            Logger.rendering.debug(
-                "Pause ignored because renderer has already been stopped"
-            )
             return
         }
 
@@ -118,25 +113,17 @@ final class VideoWallpaperRenderer {
 
     func stop() {
         guard !isStopped else {
-            Logger.rendering.debug(
-                "Renderer stop ignored because it is already stopped"
-            )
             return
         }
 
         isStopped = true
 
-        // Stop observing before tearing down AVFoundation objects.
         statusObservation?.invalidate()
         statusObservation = nil
 
-        // Stop playback.
         player.pause()
-
-        // Prevent the looper from scheduling additional loop items.
         looper.disableLooping()
 
-        // Disconnect the visual layer from the player.
         playerLayer.player = nil
 
         Logger.rendering.info(
@@ -188,7 +175,6 @@ final class VideoWallpaperRenderer {
 }
 
 enum VideoWallpaperRendererError: LocalizedError {
-
     case fileNotFound(URL)
 
     var errorDescription: String? {

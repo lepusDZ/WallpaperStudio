@@ -1,11 +1,19 @@
 import Cocoa
 import OSLog
+import UniformTypeIdentifiers
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate:
+    NSObject,
+    NSApplicationDelegate {
 
     private let wallpaperEngine =
         WallpaperEngine()
+
+    lazy var performanceBenchmark =
+        DebugPerformanceBenchmark(
+            engine: wallpaperEngine
+        )
 
     func applicationDidFinishLaunching(
         _ notification: Notification
@@ -22,13 +30,68 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "Wallpaper Studio is terminating"
         )
 
+        performanceBenchmark.cancel()
         wallpaperEngine.stop()
+    }
+
+    // MARK: - Wallpaper Selection
+
+    func chooseWallpaper() -> URL? {
+        let panel = NSOpenPanel()
+
+        panel.title =
+            "Choose Video Wallpaper"
+
+        panel.prompt =
+            "Choose"
+
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+
+        panel.allowedContentTypes = [
+            .movie
+        ]
+
+        guard
+            panel.runModal() == .OK,
+            let url = panel.url
+        else {
+            return nil
+        }
+
+        let previousState =
+            wallpaperEngine.state
+
+        wallpaperEngine.stop()
+
+        guard wallpaperEngine
+            .setVideoURL(url)
+        else {
+            return nil
+        }
+
+        switch previousState {
+        case .paused:
+            _ = wallpaperEngine.start()
+            wallpaperEngine.pause()
+
+        case .running,
+             .stopped:
+            _ = wallpaperEngine.start()
+        }
+
+        Logger.engine.info(
+            "Wallpaper selected: \(url.lastPathComponent, privacy: .public)"
+        )
+
+        return url
     }
 
     // MARK: - Wallpaper Controls
 
     func startWallpaper() {
-        wallpaperEngine.start()
+        _ = wallpaperEngine.start()
     }
 
     func pauseWallpaper() {
@@ -46,7 +109,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func setScalingMode(
         _ mode: WallpaperScalingMode
     ) {
-        wallpaperEngine.setScalingMode(mode)
+        wallpaperEngine
+            .setScalingMode(mode)
     }
 
     // MARK: - Debug
@@ -63,7 +127,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 "Lifecycle test iteration \(iteration)"
             )
 
-            wallpaperEngine.start()
+            guard
+                wallpaperEngine.videoURL
+                    != nil
+            else {
+                Logger.engine.warning(
+                    "Lifecycle test requires a selected wallpaper"
+                )
+                return
+            }
+
+            _ = wallpaperEngine.start()
             wallpaperEngine.pause()
             wallpaperEngine.resume()
             wallpaperEngine.stop()
