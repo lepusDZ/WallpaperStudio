@@ -4,10 +4,22 @@ import SwiftUI
 struct ContentView: View {
 
     @ObservedObject
-    var benchmark:
-        DebugPerformanceBenchmark
+    var engine: WallpaperEngine
 
-    let onChooseVideo: () -> URL?
+    @ObservedObject
+    var benchmark: DebugPerformanceBenchmark
+
+    let onChooseWallpaper:
+        (DisplayID) -> Void
+
+    let onClearWallpaper:
+        (DisplayID) -> Void
+
+    let onPauseDisplay:
+        (DisplayID) -> Void
+
+    let onResumeDisplay:
+        (DisplayID) -> Void
 
     let onStart: () -> Void
     let onPause: () -> Void
@@ -21,39 +33,34 @@ struct ContentView: View {
         (WallpaperScalingMode) -> Void
 
     @State
-    private var selectedVideoName =
-        "No video selected"
-
-    @State
     private var scalingMode:
         WallpaperScalingMode = .fill
 
     var body: some View {
-        VStack(spacing: 24) {
-            header
+        ScrollView {
+            VStack(spacing: 24) {
+                header
 
-            wallpaperControls
+                displayAssignments
 
-            scalingControls
+                scalingControls
 
-            #if DEBUG
-            lifecycleDebugControls
-            performanceDebugControls
-            #endif
+                #if DEBUG
+                lifecycleDebugControls
+                performanceDebugControls
+                #endif
 
-            Spacer()
-
-            Text(
-                "Under active development"
+                Text(
+                    "Under active development"
+                )
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+            }
+            .frame(
+                maxWidth: .infinity
             )
-            .font(.caption)
-            .foregroundStyle(.tertiary)
+            .padding(40)
         }
-        .frame(
-            maxWidth: .infinity,
-            maxHeight: .infinity
-        )
-        .padding(40)
     }
 
     // MARK: - Header
@@ -64,8 +71,12 @@ struct ContentView: View {
                 systemName:
                     "photo.on.rectangle.angled"
             )
-            .font(.system(size: 48))
-            .foregroundStyle(.secondary)
+            .font(
+                .system(size: 48)
+            )
+            .foregroundStyle(
+                .secondary
+            )
 
             Text("Wallpaper Studio")
                 .font(.largeTitle)
@@ -74,67 +85,203 @@ struct ContentView: View {
             Text(
                 "Native dynamic wallpapers for macOS."
             )
-            .foregroundStyle(.secondary)
+            .foregroundStyle(
+                .secondary
+            )
         }
     }
 
-    // MARK: - Wallpaper
+    // MARK: - Displays
 
-    private var wallpaperControls:
+    private var displayAssignments:
         some View {
 
         GroupBox {
             VStack(
                 alignment: .leading,
-                spacing: 12
+                spacing: 16
             ) {
-                Text("Wallpaper")
+                Text("Displays")
                     .font(.headline)
 
-                HStack {
-                    Image(
-                        systemName:
-                            "film"
-                    )
-
+                if engine.displays.isEmpty {
                     Text(
-                        selectedVideoName
-                    )
-                    .lineLimit(1)
-                    .truncationMode(
-                        .middle
+                        "No displays detected."
                     )
                     .foregroundStyle(
                         .secondary
                     )
+                } else {
+                    ForEach(
+                        engine.displays
+                    ) { display in
 
-                    Spacer()
-
-                    Button {
-                        guard
-                            let url =
-                                onChooseVideo()
-                        else {
-                            return
-                        }
-
-                        selectedVideoName =
-                            url.lastPathComponent
-                    } label: {
-                        Label(
-                            "Choose Video",
-                            systemImage:
-                                "folder"
+                        displayRow(
+                            display
                         )
                     }
-                    .disabled(
-                        benchmark.isRunning
-                    )
                 }
             }
             .padding(4)
         }
-        .frame(width: 460)
+        .frame(width: 560)
+    }
+
+    private func displayRow(
+        _ display: DisplayDescriptor
+    ) -> some View {
+
+        let wallpaper =
+            engine.wallpaperAssignments[
+                display.id
+            ]
+
+        let isPaused =
+            engine.pausedDisplayIDs
+                .contains(
+                    display.id
+                )
+
+        return VStack(
+            alignment: .leading,
+            spacing: 10
+        ) {
+            HStack {
+                VStack(
+                    alignment: .leading,
+                    spacing: 2
+                ) {
+                    Text(
+                        display.name
+                    )
+                    .fontWeight(
+                        .semibold
+                    )
+
+                    Text(
+                        display.isBuiltIn
+                        ? "Built-in display"
+                        : "External display"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(
+                        .secondary
+                    )
+                }
+
+                Spacer()
+
+                if isPaused {
+                    Text("Paused")
+                        .font(.caption)
+                        .foregroundStyle(
+                            .secondary
+                        )
+                }
+            }
+
+            HStack {
+                Image(
+                    systemName:
+                        "film"
+                )
+                .foregroundStyle(
+                    .secondary
+                )
+
+                Text(
+                    wallpaper?
+                        .displayName
+                    ?? "No wallpaper assigned"
+                )
+                .lineLimit(1)
+                .truncationMode(
+                    .middle
+                )
+                .foregroundStyle(
+                    wallpaper == nil
+                    ? .secondary
+                    : .primary
+                )
+
+                Spacer()
+            }
+
+            HStack {
+                Button {
+                    onChooseWallpaper(
+                        display.id
+                    )
+                } label: {
+                    Label(
+                        wallpaper == nil
+                        ? "Choose Video"
+                        : "Change Video",
+                        systemImage:
+                            "folder"
+                    )
+                }
+
+                if wallpaper != nil {
+                    Button(
+                        role: .destructive
+                    ) {
+                        onClearWallpaper(
+                            display.id
+                        )
+                    } label: {
+                        Label(
+                            "Clear",
+                            systemImage:
+                                "xmark"
+                        )
+                    }
+
+                    Spacer()
+
+                    if engine.state
+                        != .stopped {
+
+                        if isPaused {
+                            Button {
+                                onResumeDisplay(
+                                    display.id
+                                )
+                            } label: {
+                                Label(
+                                    "Resume",
+                                    systemImage:
+                                        "play.fill"
+                                )
+                            }
+                        } else {
+                            Button {
+                                onPauseDisplay(
+                                    display.id
+                                )
+                            } label: {
+                                Label(
+                                    "Pause",
+                                    systemImage:
+                                        "pause.fill"
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if display.id
+                != engine.displays
+                    .last?.id {
+
+                Divider()
+                    .padding(.top, 4)
+            }
+        }
+        .disabled(
+            benchmark.isRunning
+        )
     }
 
     // MARK: - Scaling
@@ -160,6 +307,7 @@ struct ContentView: View {
                             .allCases,
                         id: \.self
                     ) { mode in
+
                         Text(
                             mode.displayName
                         )
@@ -174,6 +322,7 @@ struct ContentView: View {
                 .onChange(
                     of: scalingMode
                 ) { _, newMode in
+
                     onScalingModeChange(
                         newMode
                     )
@@ -211,7 +360,7 @@ struct ContentView: View {
                     )
 
                     lifecycleButton(
-                        "Pause",
+                        "Pause All",
                         systemImage:
                             "pause.fill",
                         action:
@@ -219,7 +368,7 @@ struct ContentView: View {
                     )
 
                     lifecycleButton(
-                        "Resume",
+                        "Resume All",
                         systemImage:
                             "play.circle.fill",
                         action:
@@ -247,7 +396,7 @@ struct ContentView: View {
             }
             .padding(4)
         }
-        .frame(width: 460)
+        .frame(width: 560)
         .disabled(
             benchmark.isRunning
         )
@@ -325,14 +474,6 @@ struct ContentView: View {
                             )
                         }
                     }
-
-                    Text(
-                        "Full suite benchmarks all four videos through plain AVFoundation and Wallpaper Studio for 10 minutes each."
-                    )
-                    .font(.caption)
-                    .foregroundStyle(
-                        .secondary
-                    )
                 }
 
                 if let reportURL =
@@ -358,7 +499,7 @@ struct ContentView: View {
             }
             .padding(4)
         }
-        .frame(width: 520)
+        .frame(width: 560)
     }
 
     private func lifecycleButton(

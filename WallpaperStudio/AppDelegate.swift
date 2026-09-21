@@ -7,7 +7,7 @@ final class AppDelegate:
     NSObject,
     NSApplicationDelegate {
 
-    private let wallpaperEngine =
+    let wallpaperEngine =
         WallpaperEngine()
 
     lazy var performanceBenchmark =
@@ -22,7 +22,8 @@ final class AppDelegate:
             "Application finished launching"
         )
 
-        wallpaperEngine.startDisplayMonitoring()
+        wallpaperEngine
+            .startDisplayMonitoring()
     }
 
     func applicationWillTerminate(
@@ -36,9 +37,11 @@ final class AppDelegate:
         wallpaperEngine.stop()
     }
 
-    // MARK: - Wallpaper Selection
+    // MARK: - Wallpaper Assignment
 
-    func chooseWallpaper() -> URL? {
+    func chooseWallpaper(
+        for displayID: DisplayID
+    ) {
         let panel = NSOpenPanel()
 
         panel.title =
@@ -59,38 +62,38 @@ final class AppDelegate:
             panel.runModal() == .OK,
             let url = panel.url
         else {
-            return nil
+            return
         }
 
-        let previousState =
-            wallpaperEngine.state
-
-        wallpaperEngine.stop()
+        let wallpaper =
+            Wallpaper(
+                sourceURL: url
+            )
 
         guard wallpaperEngine
-            .setVideoURL(url)
+            .assignWallpaper(
+                wallpaper,
+                to: displayID
+            )
         else {
-            return nil
-        }
-
-        switch previousState {
-        case .paused:
-            _ = wallpaperEngine.start()
-            wallpaperEngine.pause()
-
-        case .running,
-             .stopped:
-            _ = wallpaperEngine.start()
+            return
         }
 
         Logger.engine.info(
-            "Wallpaper selected: \(url.lastPathComponent, privacy: .public)"
+            "Selected \(url.lastPathComponent, privacy: .public) for display \(displayID.rawValue, privacy: .public)"
         )
-
-        return url
     }
 
-    // MARK: - Wallpaper Controls
+    func clearWallpaper(
+        for displayID: DisplayID
+    ) {
+        wallpaperEngine
+            .clearWallpaper(
+                for: displayID
+            )
+    }
+
+    // MARK: - Global Controls
 
     func startWallpaper() {
         _ = wallpaperEngine.start()
@@ -108,11 +111,35 @@ final class AppDelegate:
         wallpaperEngine.stop()
     }
 
+    // MARK: - Per-Display Controls
+
+    func pauseWallpaper(
+        on displayID: DisplayID
+    ) {
+        wallpaperEngine
+            .pauseDisplay(
+                displayID
+            )
+    }
+
+    func resumeWallpaper(
+        on displayID: DisplayID
+    ) {
+        wallpaperEngine
+            .resumeDisplay(
+                displayID
+            )
+    }
+
+    // MARK: - Configuration
+
     func setScalingMode(
         _ mode: WallpaperScalingMode
     ) {
         wallpaperEngine
-            .setScalingMode(mode)
+            .setScalingMode(
+                mode
+            )
     }
 
     // MARK: - Debug
@@ -122,22 +149,21 @@ final class AppDelegate:
             "Starting 20-cycle lifecycle stress test"
         )
 
+        guard wallpaperEngine
+            .hasAnyWallpaperAssignment
+        else {
+            Logger.engine.warning(
+                "Lifecycle test requires at least one wallpaper assignment"
+            )
+            return
+        }
+
         wallpaperEngine.stop()
 
         for iteration in 1...20 {
             Logger.engine.debug(
                 "Lifecycle test iteration \(iteration)"
             )
-
-            guard
-                wallpaperEngine.videoURL
-                    != nil
-            else {
-                Logger.engine.warning(
-                    "Lifecycle test requires a selected wallpaper"
-                )
-                return
-            }
 
             _ = wallpaperEngine.start()
             wallpaperEngine.pause()

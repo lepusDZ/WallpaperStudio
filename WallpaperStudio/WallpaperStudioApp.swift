@@ -21,12 +21,43 @@ struct WallpaperStudioApp: App {
             id: "main-control"
         ) {
             ContentView(
+                engine:
+                    appDelegate
+                        .wallpaperEngine,
                 benchmark:
                     appDelegate
                         .performanceBenchmark,
-                onChooseVideo: {
+                onChooseWallpaper: {
+                    displayID in
+
                     appDelegate
-                        .chooseWallpaper()
+                        .chooseWallpaper(
+                            for: displayID
+                        )
+                },
+                onClearWallpaper: {
+                    displayID in
+
+                    appDelegate
+                        .clearWallpaper(
+                            for: displayID
+                        )
+                },
+                onPauseDisplay: {
+                    displayID in
+
+                    appDelegate
+                        .pauseWallpaper(
+                            on: displayID
+                        )
+                },
+                onResumeDisplay: {
+                    displayID in
+
+                    appDelegate
+                        .resumeWallpaper(
+                            on: displayID
+                        )
                 },
                 onStart: {
                     appDelegate
@@ -65,7 +96,7 @@ struct WallpaperStudioApp: App {
         }
         .defaultSize(
             width: 820,
-            height: 760
+            height: 820
         )
         .restorationBehavior(
             .disabled
